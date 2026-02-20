@@ -1,0 +1,13 @@
+node_modules/
+.env.local
+dist/
+coverage/
+*.js.map
+
+.agent/
+.github/*
+!.github/workflows/
+.github/workflows/*
+!.github/workflows/ci.yml
+.opencode/
+openspec/

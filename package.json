@@ -1,0 +1,28 @@
+{
+  "name": "obsigram-ai",
+  "version": "0.1.0",
+  "description": "Telegram → Obsidian Vault AI pipeline with ACP + OpenCode",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "backfill:links": "tsx src/scripts/backfillGraphLinks.ts"
+  },
+  "dependencies": {
+    "apify-client": "^2.22.1",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "grammy": "^1.31.0",
+    "simple-git": "^3.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@vitest/coverage-v8": "^2.1.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.9"
+  }
+}
