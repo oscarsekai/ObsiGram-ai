@@ -37,7 +37,8 @@ describe('config', () => {
     process.env.ALLOWED_USER_ID = '12345'
     process.env.VAULT_PATH = '/test/vault'
 
-    await expect(import('./config.js')).rejects.toThrow('TELEGRAM_BOT_TOKEN')
+    const { config } = await import('./config.js')
+    expect(() => config.TELEGRAM_BOT_TOKEN).toThrow('TELEGRAM_BOT_TOKEN')
   })
 
   it('throws when ALLOWED_USER_ID is missing', async () => {
@@ -45,7 +46,8 @@ describe('config', () => {
     delete process.env.ALLOWED_USER_ID
     process.env.VAULT_PATH = '/test/vault'
 
-    await expect(import('./config.js')).rejects.toThrow('ALLOWED_USER_ID')
+    const { config } = await import('./config.js')
+    expect(() => config.ALLOWED_USER_ID).toThrow('ALLOWED_USER_ID')
   })
 
   it('uses default OPENCODE_TIMEOUT_MS of 120000 when not set', async () => {
