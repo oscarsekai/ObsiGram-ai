@@ -6,8 +6,42 @@ import { run as acpRun } from '../acp/openCodeBridge.js'
 import { validateVaultPath, validateFilePath } from '../acp/vaultValidator.js'
 import { sync as gitSync } from '../git/gitSync.js'
 import type { BotContext } from './handlers.js'
+import { isYouTubeUrl } from './handlers.js'
+import { handler as ytHandler } from '../tools/youtubeTranscript.js'
+import { handler as svHandler } from '../tools/searchVault.js'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import path from 'path'
+import type { BufferItem } from '../buffer/types.js'
+
+/**
+ * Pre-processes buffer items: YouTube URLs are replaced with their transcript content
+ * so opencode receives the full text rather than a raw URL.
+ */
+async function enrichBufferItems(items: BufferItem[]): Promise<BufferItem[]> {
+  return Promise.all(
+    items.map(async (item) => {
+      if (item.type === 'url' && isYouTubeUrl(item.content)) {
+        const transcript = await ytHandler({ url: item.content })
+        return {
+          ...item,
+          content: `[YouTube URL: ${item.content}]\n\n${transcript}`,
+        }
+      }
+      return item
+    }),
+  )
+}
+
+/**
+ * Calls search_vault with the classification theme to surface existing related notes.
+ * Returns a hint string to inject into the prompt.
+ */
+async function getVaultSearchHint(classification: ReturnType<typeof classifyForPrompt>): Promise<string> {
+  const keyword = classification.candidates[0] ?? classification.signals
+    .find((s) => s.startsWith('theme='))?.replace('theme=', '') ?? ''
+  if (!keyword) return ''
+  return svHandler({ keyword })
+}
 
 const inFlightUsers = new Set<string>()
 
@@ -208,7 +242,9 @@ export async function aggregateAndSave(
 
     const classification = classifyForPrompt(items, vaultPath)
     const catalogPath = buildVaultCatalog(vaultPath, classification)
-    const prompt = buildPrompt(items, vaultPath, classification, catalogPath ?? undefined)
+    const enrichedItems = await enrichBufferItems(items)
+    const vaultSearchHint = await getVaultSearchHint(classification)
+    const prompt = buildPrompt(enrichedItems, vaultPath, classification, catalogPath ?? undefined, vaultSearchHint || undefined)
     const acpResult = await acpRun(prompt, undefined, undefined, vaultPath)
 
     if (!acpResult.success || !acpResult.filePath) {

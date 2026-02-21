@@ -12,6 +12,7 @@ export function buildPrompt(
   vaultPath: string,
   classification?: ClassificationResult,
   catalogPath?: string,
+  vaultSearchHint?: string,
 ): string {
   const itemsText = items
     .map((item, i) => `### Item ${i + 1} (${item.type})\n${item.content}`)
@@ -42,6 +43,10 @@ export function buildPrompt(
     ? `- Priority context file: ${catalogPath}（先讀這份目錄索引與既有 title，再決定最終分類）`
     : '- Priority context file: (none)'
 
+  const vaultSearchBlock = vaultSearchHint
+    ? `\n\n### Vault Search Results (existing related notes)\n${vaultSearchHint}\n`
+    : ''
+
   return PROMPT_TEMPLATE
     .replaceAll('{{VAULT_PATH}}', vaultPath)
     .replace('{{CLASSIFICATION_TEXT}}', classificationText)
@@ -49,5 +54,5 @@ export function buildPrompt(
     .replace('{{FOLDER_RULE}}', folderRule)
     .replace('{{NOTE_TYPE_RULE}}', noteTypeRule)
     .replace('{{CATALOG_HINT}}', catalogHint)
-    .replace('{{INPUT_CONTENT}}', `${itemsText}\n\n[Coverage requirement]\nYou must explicitly analyze all input items (Item 1..N). Do not ignore any URL/item.`)
+    .replace('{{INPUT_CONTENT}}', `${itemsText}${vaultSearchBlock}\n\n[Coverage requirement]\nYou must explicitly analyze all input items (Item 1..N). Do not ignore any URL/item.`)
 }

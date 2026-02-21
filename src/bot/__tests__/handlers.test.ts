@@ -15,6 +15,7 @@ import {
   handleTextMessage,
   handleClearCommand,
   handleBufferCommand,
+  isYouTubeUrl,
 } from '../handlers.js'
 
 const ALLOWED_USER_ID = 42
@@ -119,5 +120,57 @@ describe('handleBufferCommand', () => {
     const ctx = makeMockCtx()
     await handleBufferCommand(ctx, buffer)
     expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('1'))
+  })
+})
+
+describe('isYouTubeUrl', () => {
+  it('returns true for youtube.com URL', () => {
+    expect(isYouTubeUrl('https://www.youtube.com/watch?v=abc')).toBe(true)
+  })
+
+  it('returns true for youtu.be short URL', () => {
+    expect(isYouTubeUrl('https://youtu.be/abc123')).toBe(true)
+  })
+
+  it('returns false for non-YouTube URL', () => {
+    expect(isYouTubeUrl('https://example.com')).toBe(false)
+  })
+
+  it('returns false for facebook.com URL', () => {
+    expect(isYouTubeUrl('https://www.facebook.com/video/123')).toBe(false)
+  })
+})
+
+describe('handleTextMessage - YouTube URL handling', () => {
+  let buffer: SessionBuffer
+
+  beforeEach(() => {
+    buffer = new SessionBuffer()
+    vi.clearAllMocks()
+  })
+
+  it('skips fetchUrl and stores raw URL for youtube.com links', async () => {
+    const ctx = makeMockCtx({ message: { text: 'https://www.youtube.com/watch?v=abc' } })
+    await handleTextMessage(ctx, buffer)
+    expect(fetchUrl).not.toHaveBeenCalled()
+    expect(buffer.count(String(ALLOWED_USER_ID))).toBe(1)
+    const items = buffer.get(String(ALLOWED_USER_ID))
+    expect(items[0].content).toBe('https://www.youtube.com/watch?v=abc')
+    expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('YouTube'))
+  })
+
+  it('skips fetchUrl and stores raw URL for youtu.be links', async () => {
+    const ctx = makeMockCtx({ message: { text: 'https://youtu.be/abc123' } })
+    await handleTextMessage(ctx, buffer)
+    expect(fetchUrl).not.toHaveBeenCalled()
+    const items = buffer.get(String(ALLOWED_USER_ID))
+    expect(items[0].content).toBe('https://youtu.be/abc123')
+  })
+
+  it('still calls fetchUrl for non-YouTube, non-social URLs', async () => {
+    const ctx = makeMockCtx({ message: { text: 'https://example.com/article' } })
+    await handleTextMessage(ctx, buffer)
+    expect(fetchUrl).toHaveBeenCalledWith('https://example.com/article')
+    expect(buffer.count(String(ALLOWED_USER_ID))).toBe(1)
   })
 })

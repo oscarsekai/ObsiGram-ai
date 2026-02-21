@@ -23,6 +23,8 @@
 - 🔒 **安全寫檔**：路徑驗證，只能寫入 Vault 內部
 - 🔄 **Git 自動同步**：寫檔後自動 add / commit / push
 - 🔌 **ACP 架構**：透過 Agent Client Protocol 呼叫 opencode，AI 邏輯與 Bot 邏輯完全解耦
+- 🎬 **YouTube 字幕擷取**：YouTube URL 自動跳過 Jina/Apify，由 AI 工具直接取得逐字稿，生成精準摘要筆記
+- 🔍 **Vault 重複偵測**：筆記生成前自動搜尋 Vault，主題已存在時追加內容而非建立重複檔案
 
 ## 🚀 快速開始
 
@@ -34,14 +36,30 @@ cd ObsiGram-ai
 npm install
 ```
 
-### 2. 設定環境變數
+### 2. 安裝 opencode CLI
+
+ObsiGram AI 透過 [opencode](https://opencode.ai) 呼叫 AI Agent，需先全域安裝：
+
+```bash
+npm install -g opencode
+```
+
+安裝後確認可執行：
+
+```bash
+opencode --version
+```
+
+> opencode 需要有效的 AI Provider 設定（如 GitHub Copilot、OpenAI 等），請參考 [opencode 文件](https://opencode.ai/docs) 完成初始化。
+
+### 3. 設定環境變數
 
 ```bash
 cp .env.example .env.local
 # 用編輯器填入必要欄位
 ```
 
-### 3. 啟動 Bot
+### 4. 啟動 Bot
 
 ```bash
 npm start        # 正式模式
@@ -57,7 +75,7 @@ npm run dev      # 開發模式（ts-node watch）
 | -------------------- | ------------------------------- |
 | `TELEGRAM_BOT_TOKEN` | Telegram BotFather 產生的 Token |
 | `ALLOWED_USER_ID`    | 允許使用的 Telegram 使用者 ID   |
-| `VAULT_PATH`         | Obsidian Vault 的絕對路徑       |
+| `VAULT_PATH`         | Obsidian Vault 的絕對路徑（同時供 `search_vault` 技能進行重複偵測） |
 
 選用：
 
@@ -84,6 +102,11 @@ ObsiGram AI 以 **ACP（Agent Client Protocol）** 為核心：Bot 本身只負�
 │      classifyForPrompt  (語意分類)           │
 │      buildVaultCatalog  (Vault 索引)         │
 │      buildPrompt        (Prompt 注入)        │
+│      enrichBufferItems  (YouTube 字幕)       │
+│      getVaultSearchHint (重複偵測)           │
+│       ↓  [tools/]                           │
+│        get_youtube_transcript               │
+│        search_vault                         │
 │       ↓                                     │
 │  opencode  (ACP Agent / AI)                 │
 │    → 生成 Obsidian Markdown                 │
@@ -162,6 +185,7 @@ npm run backfill:links -- /absolute/path/to/vault
 | Facebook  | ✅ 啟用   | 使用 Apify`facebook-posts-scraper`                                              |
 | Instagram | ✅ 啟用   | 使用 Apify`instagram-scraper`                                                   |
 | Threads   | ⏸️ 暫停 | Apify 對應 Actor 需付費；如需啟用，可自行訂閱或在`apifyFetcher.ts` 加入自訂邏輯 |
+| YouTube   | ✅ 啟用   | 使用 `youtube-transcript` 直接取得 CC 字幕，無需 Apify                         |
 | Reddit    | ⏸️ 暫停 | 同上                                                                            |
 
 ## 💬 Telegram 指令
@@ -214,6 +238,10 @@ src/
     vaultValidator.ts  路徑安全驗證
     prompts/
       obsidian-note-prompt.md  筆記生成 Prompt 模板
+    __tests__/
+  tools/
+    youtubeTranscript.ts  YouTube 字幕擷取工具（ACP tool handler）
+    searchVault.ts        Vault 重複偵測工具（ACP tool handler）
     __tests__/
   git/
     gitSync.ts         Git add / commit / push

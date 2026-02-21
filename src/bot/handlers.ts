@@ -5,6 +5,11 @@ import { isSocialMediaUrl } from '../fetcher/apifyFetcher.js'
 // Stop matching at the start of the next URL to handle adjacent URLs with no whitespace
 const URL_REGEX_GLOBAL = /https?:\/\/(?:(?!https?:\/\/)\S)*/gi
 
+/** Returns true for youtube.com and youtu.be URLs. */
+export function isYouTubeUrl(url: string): boolean {
+  return /youtube\.com|youtu\.be/.test(url)
+}
+
 export type BotContext = {
   from?: { id: number }
   message?: { text?: string }
@@ -34,15 +39,23 @@ export async function handleTextMessage(ctx: BotContext, buffer: SessionBuffer):
   let addedCount = 0
 
   if (urls.length > 0) {
+    const hasYouTube = urls.some(isYouTubeUrl)
     const hasSocialMedia = urls.some(isSocialMediaUrl)
-    if (hasSocialMedia) {
+    if (hasYouTube) {
+      await ctx.reply('🎬 偵測到 YouTube！將交由 AI 工具擷取字幕並生成筆記。')
+    } else if (hasSocialMedia) {
       await ctx.reply('🛡️ 偵測到社群媒體！已派出 Apify 重裝部隊，約需 30 秒，請先喝口水 ☕')
     } else {
       await ctx.reply('⏳ 正在解析網址...')
     }
     for (const url of urls) {
-      const content = await fetchUrl(url)
-      buffer.push(userId, { type: 'url', content, addedAt: new Date().toISOString() })
+      if (isYouTubeUrl(url)) {
+        // YouTube URLs: skip Jina/Apify, store raw URL so aggregateFlow can fetch transcript
+        buffer.push(userId, { type: 'url', content: url, addedAt: new Date().toISOString() })
+      } else {
+        const content = await fetchUrl(url)
+        buffer.push(userId, { type: 'url', content, addedAt: new Date().toISOString() })
+      }
       addedCount++
     }
   }

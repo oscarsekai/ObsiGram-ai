@@ -6,6 +6,18 @@ vi.mock('../../acp/vaultValidator.js', () => ({
   validateFilePath: vi.fn(),
 }))
 vi.mock('../../git/gitSync.js', () => ({ sync: vi.fn() }))
+vi.mock('../handlers.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../handlers.js')>()
+  return { ...actual, isYouTubeUrl: vi.fn(() => false) }
+})
+vi.mock('../../tools/youtubeTranscript.js', () => ({
+  toolDef: { name: 'get_youtube_transcript', description: '', inputSchema: { type: 'object', properties: {}, required: [] } },
+  handler: vi.fn().mockResolvedValue('mock transcript'),
+}))
+vi.mock('../../tools/searchVault.js', () => ({
+  toolDef: { name: 'search_vault', description: '', inputSchema: { type: 'object', properties: {}, required: [] } },
+  handler: vi.fn().mockResolvedValue('No matching notes found. Please create a new file.'),
+}))
 
 import { run } from '../../acp/openCodeBridge.js'
 import { validateVaultPath, validateFilePath } from '../../acp/vaultValidator.js'
@@ -111,9 +123,10 @@ describe('aggregateFlow - aggregateAndSave', () => {
 
     const first = aggregateAndSave(ctx1, buffer, userId, vaultPath)
     const second = aggregateAndSave(ctx2, buffer, userId, vaultPath)
-    await Promise.resolve()
 
-    expect(mockedRun).toHaveBeenCalledTimes(1)
+    // Wait for first call to reach acpRun (takes a few microtasks due to enrichBufferItems/getVaultSearchHint)
+    await vi.waitFor(() => expect(mockedRun).toHaveBeenCalledTimes(1))
+
     const secondReplies = ctx2.reply.mock.calls.map((c: any[]) => c[0])
     expect(secondReplies.some((r: string) => r.includes('正在分析中'))).toBe(true)
 
